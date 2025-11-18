@@ -86,10 +86,8 @@ def remove_outer_brackets(expression:list):
 
 def find_lowest_precendence_operator(expression:list):
     """where expr is written in infix notation list"""
-    print(expression)
     
     # from least precedence to most
-    
     for operator_group in OPERATORS:
         
         #flag
@@ -103,8 +101,6 @@ def find_lowest_precendence_operator(expression:list):
             elif expression[i] in operator_group and not skip:
                 return i
             
-            print(skip)
-            print(expression[i:])
             if not skip:
                 if grouped:
                     grouped.append(expression[i:-1*len(grouped[-1])])
@@ -123,10 +119,7 @@ def infix_to_rpn(expr):
         if len(e) == 1:
             root.value = e[0]
         else:
-            print(e)
-                
             operator = find_lowest_precendence_operator(e)
-                
             
             root.set_value(e[operator])
             
