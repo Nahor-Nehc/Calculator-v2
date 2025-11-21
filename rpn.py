@@ -1,3 +1,4 @@
+import math
 import re
 
 OPERATORS = [("+", "-"), ("//", "*", "/", "%"), ("^")] # least to highest precedence
@@ -13,6 +14,11 @@ OPERATOR_FUNCTIONS = {
 IMPLICIT_OPERATOR = "*"
 
 FUNCTIONS = ["sin", "cos", "tan"]
+FUNCTION_FUNCTIONS = {
+    "sin": lambda x: math.sin(x),
+    "cos": lambda x: math.cos(x),
+    "tan": lambda x: math.tan(x),
+}
 
 class Node:
     
@@ -143,27 +149,29 @@ def evaluate(expression):
     Evaluates expression as a list in reverse polish notation.
     Accepted operators are +, -, *, /, ^, %, //
     '''
+    print(expression)
     
-    operators = {
-        "+": lambda x, y: x+y,
-        "-": lambda x, y: x-y,
-        "*": lambda x, y: x*y,
-        "/": lambda x, y: x/y,
-        "^": lambda x, y: x**y,
-        "%": lambda x, y: x%y,
-        "//": lambda x, y: x//y,
-    }
-    
+    functions = functions = ''+'|'.join(FUNCTIONS) + ''
     stack = []
     for item in expression:
-        stack.append(item)
+        print(stack)
+        # check for function:
+        func = False
+        if isinstance(item, str) and re.match(f"^({functions})", item) is not None:
+            func, arg = item.split("(")
+            arg = arg[:-1]
+            stack.append(FUNCTION_FUNCTIONS[func](float(arg)))
+            func = True
+        else:
+            stack.append(item)
+        
         if type(item) == float or type(item) == int:
             pass
-        else:
+        elif not func:
             operator = stack.pop(-1)
             operand1 = stack.pop(-2)
             operand2 = stack.pop(-1)
-            stack.append(operators[operator](operand1, operand2))
+            stack.append(OPERATOR_FUNCTIONS[operator](operand1, operand2))
     
     return stack[0]
 
@@ -206,7 +214,7 @@ def handle_implicit_operations(expression:str):
         expression = expression.replace(found, found[0]+IMPLICIT_OPERATOR+found[1])
         
     # functions
-    functions = '\\)'+'|\\)'.join(FUNCTIONS) 
+    functions = '\\)'+'|\\)'.join(FUNCTIONS)
     regex = f"{functions}"
     for found in (re.findall(regex, expression)):
         expression = expression.replace(found, found[0]+IMPLICIT_OPERATOR+found[1:])
@@ -250,4 +258,6 @@ tests = ["(1-2)/3+22//2(9 +10)", "40+sin(20)tan(30)", "20.9(10)"]
 
 # print(evaluate(rpn(e)))
 for e in tests:
+    print("=================")
     print(preprocess(e))
+    print(evaluate(rpn(preprocess(e))))
