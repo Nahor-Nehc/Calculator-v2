@@ -10,7 +10,9 @@ OPERATOR_FUNCTIONS = {
     "+": lambda x, y: x + y,
     "-": lambda x, y: x - y,
 }
+IMPLICIT_OPERATOR = "*"
 
+FUNCTIONS = ["sin", "cos", "tan"]
 
 class Node:
     
@@ -176,16 +178,44 @@ def clean_brackets(expression:str):
             expression = replaced
             
 
-def space_out_operators(expression:str):
-    regex = "[\\d]+|[()]"
+def preserve_function_spacing(expression:str):
+    functions = ''+'|'.join(FUNCTIONS) + ''
+    regex = f"({functions})([ ])+([\\(\\[])"
+    for found in re.findall(regex, expression):
+        func = found[0]
+        expression = expression.replace("".join(found), " " + func+found[2])
+    return expression
+
+
+def space_out_numbers(expression:str):
+    regex = "[\\d.]+|[()]"
     new_expression = ""
     for found in re.findall(regex, expression):
         partition = expression.partition(found)
         new_expression += partition[0] + " " + partition[1] + " "
         expression = partition[2]
-
-    
     return new_expression.strip()
+
+
+def handle_implicit_operations(expression:str):
+    """do this before spacing out operators"""
+    
+    # either a digit or closed brackets before open brackets
+    regex = "\\d\\(|\\)\\("
+    for found in re.findall(regex, expression):
+        expression = expression.replace(found, found[0]+IMPLICIT_OPERATOR+found[1])
+        
+    # functions
+    functions = '\\)'+'|\\)'.join(FUNCTIONS) 
+    regex = f"{functions}"
+    for found in (re.findall(regex, expression)):
+        expression = expression.replace(found, found[0]+IMPLICIT_OPERATOR+found[1:])
+    
+    return expression
+
+
+def collapse_spaces(expression:str):
+    return expression.replace(" ", "")
 
 def convert_numbers(expression:list[str]):
     """expression is in rpn"""
@@ -197,7 +227,17 @@ def convert_numbers(expression:list[str]):
     return expression
 
 def preprocess(expression):
-    return clean_brackets(space_out_operators(expression))
+    return preserve_function_spacing(
+        clean_brackets(
+            space_out_numbers(
+                handle_implicit_operations(
+                    collapse_spaces(
+                        expression.lower()
+                        )
+                    )
+                )
+            )
+        )
     
 
 def rpn(expression):
@@ -206,6 +246,8 @@ def rpn(expression):
     return rpn
 
 
-e = "(1-2)/3+22//2*(9+10)"
+tests = ["(1-2)/3+22//2(9 +10)", "40+sin(20)tan(30)", "20.9(10)"]
 
-print(evaluate(rpn(e)))
+# print(evaluate(rpn(e)))
+for e in tests:
+    print(preprocess(e))
