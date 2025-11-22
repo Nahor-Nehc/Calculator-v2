@@ -67,8 +67,8 @@ class Node:
         else: return False
 
 
-def remove_outer_brackets(expression:list):
-    if expression[0][0] == "(":
+def remove_outer_brackets(expression:list, function=""):
+    if expression[0].startswith(function+"("):
         
         skip = expression[0].count("(")
         triggered = False
@@ -83,10 +83,9 @@ def remove_outer_brackets(expression:list):
             
             if skip == 0 and i != len(expression) - 1:
                 triggered = True            
-            
         if not triggered:
             # remove
-            expression[0] = expression[0][1:]
+            expression[0] = expression[0][1+len(function):]
             expression[-1] = expression[-1][:-1]
                     
     return expression
@@ -118,24 +117,74 @@ def find_lowest_precendence_operator(expression:list):
     
     raise ValueError("Expression invalid due to unknown operators")
 
+
+def check_fully_bracketed(expr:list[str]):
+    current = 0
+    for section in expr[:-1]:
+        current += section.count("(")
+        current -= section.count(")")
+        if current == 0:
+            return False
+    
+    current += expr[-1].count("(")
+    current -= expr[-1].count(")")
+    
+    if current != 0:
+        raise ValueError(f"Expression {" ".join(expr)} is not correctly bracketed")
+
+    return True
+
+
 def infix_to_rpn(expr):
     
     def inner(root):
+        print("inner")
+        print(root.value)
         e = root.value
-        # print(e)
+        # check for function wrapping the entire expression:
         
-        if len(e) == 1:
-            root.value = e[0]
+        functions = ''+'|'.join(FUNCTIONS) + ''
+        regex = f"^({functions})\\("
+        m = re.match(regex, e[0])
+        if m is not None and check_fully_bracketed(e):
+            print("fully bracketed")
+            print(m.group()[:-1])
+            print("====")
+            root.value = m.group()[:-1]
+            
+            if len(e) == 1:
+                root.value = m.group()[:-1]
+                argument = e[0][len(m.group()):-1]
+                print("HIIII")
+                print(root.value, argument)
+                
+                root.add_left_child(argument)
+                
+            else:
+                print("OTHER HI")
+                print(m.group()[:-1])
+                print(remove_outer_brackets(e, function=m.group()[:-1]))
+                root.value = m.group()[:-1]
+                
+                root.add_left_child(remove_outer_brackets(e, function=m.group()[:-1]))
+                print(root.left_child.value)
+                
+                inner(root.left_child)
+        
         else:
-            operator = find_lowest_precendence_operator(e)
-            
-            root.set_value(e[operator])
-            
-            root.add_left_child(remove_outer_brackets(e[:operator]))
-            root.add_right_child(remove_outer_brackets(e[operator + 1:]))
-            
-            inner(root.left_child)
-            inner(root.right_child)
+            if len(e) == 1:
+                root.set_value(e[0])
+            else:
+                
+                operator_index = find_lowest_precendence_operator(e)
+                
+                root.set_value(e[operator_index])
+                
+                root.add_left_child(remove_outer_brackets(e[:operator_index]))
+                root.add_right_child(remove_outer_brackets(e[operator_index + 1:]))
+                
+                inner(root.left_child)
+                inner(root.right_child)
     
     expression = remove_outer_brackets(expr.split(" "))
     tree = Node(expression)
@@ -149,29 +198,29 @@ def evaluate(expression):
     Evaluates expression as a list in reverse polish notation.
     Accepted operators are +, -, *, /, ^, %, //
     '''
+    print("EVALUATING")
     print(expression)
     
-    functions = functions = ''+'|'.join(FUNCTIONS) + ''
     stack = []
     for item in expression:
         print(stack)
-        # check for function:
-        func = False
-        if isinstance(item, str) and re.match(f"^({functions})", item) is not None:
-            func, arg = item.split("(")
-            arg = arg[:-1]
-            stack.append(FUNCTION_FUNCTIONS[func](float(arg)))
-            func = True
-        else:
-            stack.append(item)
+        
+
+        stack.append(item)
         
         if type(item) == float or type(item) == int:
             pass
-        elif not func:
-            operator = stack.pop(-1)
-            operand1 = stack.pop(-2)
-            operand2 = stack.pop(-1)
-            stack.append(OPERATOR_FUNCTIONS[operator](operand1, operand2))
+        else:
+            # check for function:
+            if item in FUNCTIONS:
+                function = stack.pop(-1)
+                operand = stack.pop(-1)
+                stack.append(FUNCTION_FUNCTIONS[function](operand))
+            else:
+                operator = stack.pop(-1)
+                operand1 = stack.pop(-2)
+                operand2 = stack.pop(-1)
+                stack.append(OPERATOR_FUNCTIONS[operator](operand1, operand2))
     
     return stack[0]
 
@@ -192,7 +241,7 @@ def preserve_function_spacing(expression:str):
     for found in re.findall(regex, expression):
         func = found[0]
         expression = expression.replace("".join(found), " " + func+found[2])
-    return expression
+    return expression.strip()
 
 
 def space_out_numbers(expression:str):
@@ -253,11 +302,10 @@ def rpn(expression):
     rpn = convert_numbers(infix_to_rpn(cleaned))
     return rpn
 
+tests = ["sin(30)", "40+sin(20)tan(30*2)"]
 
-tests = ["(1-2)/3+22//2(9 +10)", "40+sin(20)tan(30)", "20.9(10)"]
 
-# print(evaluate(rpn(e)))
 for e in tests:
     print("=================")
     print(preprocess(e))
-    print(evaluate(rpn(preprocess(e))))
+    print(evaluate(rpn(e)))
