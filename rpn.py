@@ -20,6 +20,13 @@ FUNCTION_FUNCTIONS = {
     "tan": lambda x: math.tan(x),
 }
 
+CONSTANTS = ["e", "pi"]
+CONSTANT_CALUES = {
+    "e": math.e,
+    "pi": math.pi,
+    "tau": math.tau,
+}
+
 class Node:
     
     def __init__(self, value):
@@ -205,7 +212,6 @@ def evaluate(expression):
     for item in expression:
         print(stack)
         
-
         stack.append(item)
         
         if type(item) == float or type(item) == int:
@@ -225,33 +231,8 @@ def evaluate(expression):
     return stack[0]
 
 
-def clean_brackets(expression:str):
-    while True:
-        pre_replace = expression
-        replaced = expression.replace("( ", "(").replace(" )", ")").replace("  ", " ")
-        if replaced == pre_replace:
-            return replaced
-        else:
-            expression = replaced
-            
-
-def preserve_function_spacing(expression:str):
-    functions = ''+'|'.join(FUNCTIONS) + ''
-    regex = f"({functions})([ ])+([\\(\\[])"
-    for found in re.findall(regex, expression):
-        func = found[0]
-        expression = expression.replace("".join(found), " " + func+found[2])
-    return expression.strip()
-
-
-def space_out_numbers(expression:str):
-    regex = "[\\d.]+|[()]"
-    new_expression = ""
-    for found in re.findall(regex, expression):
-        partition = expression.partition(found)
-        new_expression += partition[0] + " " + partition[1] + " "
-        expression = partition[2]
-    return new_expression.strip()
+def collapse_spaces(expression:str):
+    return expression.replace(" ", "")
 
 
 def handle_implicit_operations(expression:str):
@@ -271,8 +252,34 @@ def handle_implicit_operations(expression:str):
     return expression
 
 
-def collapse_spaces(expression:str):
-    return expression.replace(" ", "")
+def space_out_numbers(expression:str):
+    regex = "[\\d.]+|[()]"
+    new_expression = ""
+    for found in re.findall(regex, expression):
+        partition = expression.partition(found)
+        new_expression += partition[0] + " " + partition[1] + " "
+        expression = partition[2]
+    return new_expression.strip()
+
+
+def clean_brackets(expression:str):
+    while True:
+        pre_replace = expression
+        replaced = expression.replace("( ", "(").replace(" )", ")").replace("  ", " ")
+        if replaced == pre_replace:
+            return replaced
+        else:
+            expression = replaced
+
+
+def preserve_function_spacing(expression:str):
+    functions = ''+'|'.join(FUNCTIONS) + ''
+    regex = f"({functions})([ ])+([\\(\\[])"
+    for found in re.findall(regex, expression):
+        func = found[0]
+        expression = expression.replace("".join(found), " " + func+found[2])
+    return expression.strip()
+
 
 def convert_numbers(expression:list[str]):
     """expression is in rpn"""
@@ -283,29 +290,32 @@ def convert_numbers(expression:list[str]):
             expression[item] = float(expression[item])
     return expression
 
+
 def preprocess(expression):
-    return preserve_function_spacing(
-        clean_brackets(
-            space_out_numbers(
-                handle_implicit_operations(
-                    collapse_spaces(
-                        expression.lower()
-                        )
-                    )
-                )
-            )
-        )
     
+    operations = [
+        str.lower,
+        collapse_spaces,
+        handle_implicit_operations,
+        space_out_numbers,
+        clean_brackets,
+        preserve_function_spacing,
+    ]
+    
+    for op in operations:
+        expression = op(expression)
+    
+    return expression
+
 
 def rpn(expression):
     cleaned = preprocess(expression)
     rpn = convert_numbers(infix_to_rpn(cleaned))
     return rpn
 
-tests = ["sin(30)", "40+sin(20)tan(30*2)"]
-
+tests = ["sin(30)", "40+sin(20)tan(30*2)", "sin(pi/2)", "sin(2*pi)"]
 
 for e in tests:
     print("=================")
     print(preprocess(e))
-    print(evaluate(rpn(e)))
+    # print(evaluate(rpn(e)))
